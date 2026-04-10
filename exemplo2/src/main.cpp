@@ -1,0 +1,92 @@
+/*   **************************************** 
+* Exemplo 2 para deletar tasks no FreeRTOS
+*
+*
+*********************************************/
+
+/* Biblioteca Arduino */
+#include <Arduino.h>
+
+/* Bibliotecas FreeRTOS */
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+/* Mapeamento de pinos */
+#define LED 27
+
+/* Variáveis para armazenamento da handle das tasks */
+/* O handle das tasks serve para controlar e manipular as tasks */
+TaskHandle_t task1Handle = NULL;
+TaskHandle_t task2Handle = NULL;
+
+/* Protótipos das tasks */
+void task1(void *pvParameters);
+void task2(void *pvParameters);
+
+void setup(){
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+
+  /* Criação Task 1: blink do LED*/
+  xTaskCreate(
+    task1, 
+    "Task 1", 
+    configMINIMAL_STACK_SIZE, 
+    NULL, 
+    1, 
+    &task1Handle
+  );
+
+  /* Criação Task 2: imprimir contador */
+  xTaskCreate(
+    task2,
+    "Task 2",
+    configMINIMAL_STACK_SIZE+1024,
+    NULL,
+    2,
+    &task2Handle
+  );
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  vTaskDelay(1000);
+}
+
+void task1(void *pvParameters){
+
+  pinMode(LED,OUTPUT);
+
+  while (1)
+  {
+    digitalWrite(LED,!digitalRead(LED)); /* acende o LED */
+    vTaskDelay(pdMS_TO_TICKS(200)); /* espera 200ms para alternar */  
+  }
+}
+
+void task2(void *pvParameters){
+  
+  int cont = 0;
+  
+  while(1)
+  {
+    Serial.println("Task 2: " + String(cont++));
+
+    if(cont%10==0){
+      if(task1Handle != NULL){
+        Serial.println("Deletando Task 1.");
+        vTaskDelete(task1Handle); /* Deleta Task 1 */ 
+        digitalWrite(LED,LOW); /* Led via ficar apagado após Task 1 atingir o limite da contagem*/
+        /* mas contagem continua pois é parte da task 2.*/
+        task1Handle = NULL; /* Realiza limpeza do handle 1 */
+      }
+    }
+    
+    if(cont%15==0){
+      Serial.println("Deletando Task 2.");
+      vTaskDelete(NULL); /* Deleta a prórpia Task 2 */
+    }
+    
+    vTaskDelay(pdMS_TO_TICKS(1000)); /* espera 1000ms para imprimir o próximo valor */
+  }
+}
